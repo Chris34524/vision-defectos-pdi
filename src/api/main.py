@@ -7,23 +7,21 @@ import io
 
 app = FastAPI(
     title="Vision de Defectos - MVP",
-    version="0.1.0"
+    version="0.1.0",
 )
 
-# Modelo YOLO genérico (COCO) para la demo
-MODEL_PATH = "yolov8n.pt"  # Ultralytics lo descarga la primera vez
+# ⚠️ Por ahora usaremos el modelo genérico YOLOv8n (COCO)
+# En tu repo ya tienes yolov8n.pt en la raíz, luego lo moveremos a models/
+MODEL_PATH = "yolov8n.pt"
 model = YOLO(MODEL_PATH)
 
 
 @app.get("/health")
 def health():
-    """
-    Endpoint simple para verificar que el servicio está vivo
-    y el modelo se cargó.
-    """
+    """Verifica que el servicio está vivo y el modelo cargado."""
     return {
         "status": "ok",
-        "model_loaded": MODEL_PATH
+        "model_loaded": MODEL_PATH,
     }
 
 
@@ -36,7 +34,7 @@ async def predict(image: UploadFile = File(...)):
         contents = await image.read()
         img = Image.open(io.BytesIO(contents)).convert("RGB")
 
-        # Inferencia con YOLO (modelo genérico COCO)
+        # Inferencia con YOLO
         results = model.predict(img, imgsz=640, conf=0.25)[0]
 
         detections = []
@@ -55,16 +53,16 @@ async def predict(image: UploadFile = File(...)):
                 },
                 "class_id": cls_id,
                 "class_name": class_name,
-                "score": score
+                "score": score,
             })
 
         return JSONResponse(content={
             "num_detections": len(detections),
-            "detections": detections
+            "detections": detections,
         })
 
     except Exception as e:
         return JSONResponse(
             content={"error": str(e)},
-            status_code=500
+            status_code=500,
         )
