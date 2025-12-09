@@ -3,6 +3,7 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
 from ultralytics import YOLO
 from PIL import Image
+from fastapi.staticfiles import StaticFiles
 import io
 
 app = FastAPI(
@@ -66,3 +67,4 @@ async def predict(image: UploadFile = File(...)):
             content={"error": str(e)},
             status_code=500,
         )
+app.mount("/", StaticFiles(directory="static", html=True), name="static")

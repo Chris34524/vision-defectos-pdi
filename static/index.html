@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Visión de Defectos - MVP</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 1rem;
+      background: #f5f5f5;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.3rem;
+      margin-top: 0;
+      text-align: center;
+    }
+    label {
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+    input[type="file"] {
+      margin-top: 0.5rem;
+      width: 100%;
+    }
+    .preview {
+      margin-top: 1rem;
+      text-align: center;
+    }
+    #previewImage {
+      max-width: 100%;
+      border-radius: 8px;
+      display: none;
+    }
+    button {
+      width: 100%;
+      padding: 0.75rem;
+      border-radius: 999px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 600;
+      background: #2563eb;
+      color: white;
+      margin-top: 0.75rem;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+    .status {
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+    }
+    .detections {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+    .detections ul {
+      padding-left: 1.25rem;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.1rem 0.5rem;
+      border-radius: 999px;
+      background: #e5e7eb;
+      font-size: 0.75rem;
+      margin-left: 0.25rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Visión de Defectos – MVP</h1>
+
+    <form id="uploadForm">
+      <label for="imageInput">1) Toma o elige una foto</label>
+      <input
+        id="imageInput"
+        name="image"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        required
+      />
+
+      <button type="submit" id="submitBtn">
+        2) Enviar a inspección
+      </button>
+    </form>
+
+    <div class="status" id="statusText"></div>
+
+    <div class="preview">
+      <img id="previewImage" alt="Vista previa">
+    </div>
+
+    <div class="detections" id="detections"></div>
+  </div>
+
+  <script>
+    // Si sirves este HTML desde el mismo FastAPI, esto funciona tal cual:
+    const API_URL = '/predict';
+
+    const form = document.getElementById('uploadForm');
+    const imageInput = document.getElementById('imageInput');
+    const previewImage = document.getElementById('previewImage');
+    const statusText = document.getElementById('statusText');
+    const detectionsDiv = document.getElementById('detections');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // Vista previa de la imagen seleccionada
+    imageInput.addEventListener('change', () => {
+      const file = imageInput.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        previewImage.src = e.target.result;
+        previewImage.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const file = imageInput.files[0];
+      if (!file) {
+        statusText.textContent = 'Selecciona una imagen primero.';
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('image', file);
+
+      submitBtn.disabled = true;
+      statusText.textContent = 'Procesando imagen...';
+      detectionsDiv.innerHTML = '';
+
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          body: formData
+        });
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (err) {
+          throw new Error('No se pudo leer la respuesta del servidor.');
+        }
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Error en el servidor.');
+        }
+
+        statusText.textContent = `Detecciones: ${data.num_detections || 0}`;
+
+        if (!data.detections || data.detections.length === 0) {
+          detectionsDiv.innerHTML = '<p>No se detectaron defectos (o están bajo el umbral).</p>';
+          return;
+        }
+
+        const ul = document.createElement('ul');
+        data.detections.forEach((det, idx) => {
+          const li = document.createElement('li');
+          const scorePct = (det.score * 100).toFixed(1);
+          li.innerHTML = `
+            #${idx + 1} – <strong>${det.class_name}</strong>
+            <span class="badge">${scorePct}%</span>
+          `;
+          ul.appendChild(li);
+        });
+        detectionsDiv.innerHTML = '<strong>Defectos / objetos detectados:</strong>';
+        detectionsDiv.appendChild(ul);
+
+      } catch (err) {
+        console.error(err);
+        statusText.textContent = 'Error: ' + err.message;
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
