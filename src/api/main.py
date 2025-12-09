@@ -13,7 +13,7 @@ app = FastAPI(
 
 # ⚠️ Por ahora usaremos el modelo genérico YOLOv8n (COCO)
 # En tu repo ya tienes yolov8n.pt en la raíz, luego lo moveremos a models/
-MODEL_PATH = "yolov8n.pt"
+MODEL_PATH = "models/yolov8n.pt"
 model = YOLO(MODEL_PATH)
 
 
